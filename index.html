@@ -1,14 +1,396 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Vite + React + TS</title>
-	</head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login Portal | Dither Green</title>
 
-	<body>
-		<div id="root"></div>
-		<script type="module" src="/src/react-app/main.tsx"></script>
-	</body>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            background: "var(--background)",
+            foreground: "var(--foreground)",
+            skeleton: "var(--skeleton)",
+            border: "var(--btn-border)",
+            input: "var(--input)",
+          },
+          borderRadius: { DEFAULT: "0.5rem" },
+          boxShadow: {
+            input: "0px 2px 3px -1px rgba(0, 0, 0, 0.1), 0px 1px 0px 0px rgba(25, 28, 33, 0.02), 0px 0px 0px 1px rgba(25, 28, 33, 0.08)",
+          },
+          animation: {
+            ripple: "ripple 2s ease calc(var(--i, 0) * 0.2s) infinite",
+            orbit: "orbit calc(var(--duration) * 1s) linear infinite",
+          },
+          keyframes: {
+            ripple: {
+              "0%, 100%": { transform: "translate(-50%, -50%) scale(1)" },
+              "50%": { transform: "translate(-50%, -50%) scale(0.9)" },
+            },
+            orbit: {
+              "0%": { transform: "rotate(0deg) translateY(calc(var(--radius) * 1px)) rotate(0deg)" },
+              "100%": { transform: "rotate(360deg) translateY(calc(var(--radius) * 1px)) rotate(-360deg)" },
+            }
+          },
+        },
+      },
+    }
+  </script>
+
+  <style type="text/tailwindcss">
+    @layer base {
+      :root {
+        --background: #0f172a;
+        --foreground: hsl(0, 0%, 100%);
+        --skeleton: rgba(255, 255, 255, 0.1);
+        --border: rgba(255, 255, 255, 0.1);
+        --btn-border: rgba(255, 255, 255, 0.1);
+        --input: rgba(255, 255, 255, 0.05);
+        --radius: 0.5rem;
+      }
+      body {
+        @apply bg-background text-foreground m-0 p-0 overflow-hidden font-sans;
+      }
+    }
+    @layer components {
+      .g-button {
+        @apply rounded-[var(--radius)] border border-[var(--btn-border)];
+      }
+    }
+  </style>
+
+  <style>
+    .ai-agent-container {
+        position: fixed; bottom: 30px; right: 30px; z-index: 100;
+        display: flex; flex-direction: column; align-items: flex-end;
+        animation: float 3s ease-in-out infinite;
+    }
+    .ai-bubble {
+        background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(8px);
+        color: #db2777; padding: 12px 18px; border-radius: 20px 20px 4px 20px;
+        font-size: 14px; font-weight: 600; box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        margin-bottom: 15px; opacity: 0; transform: translateY(10px) scale(0.9);
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        pointer-events: none; max-width: 200px; text-align: center;
+        border: 1px solid rgba(255,255,255,0.4);
+    }
+    .ai-bubble.show { opacity: 1; transform: translateY(0) scale(1); }
+    .ai-mascot {
+        width: 65px; height: 65px;
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+        border-radius: 50%;
+        box-shadow: 0 0 25px rgba(255, 154, 158, 0.6), inset -5px -5px 15px rgba(255,255,255,0.4), inset 5px 5px 10px rgba(0,0,0,0.05);
+        position: relative; cursor: pointer; display: flex; justify-content: center; align-items: center;
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .ai-mascot:hover {
+        transform: scale(1.1) rotate(5deg);
+        box-shadow: 0 0 35px rgba(255, 154, 158, 0.8), inset -5px -5px 15px rgba(255,255,255,0.5);
+    }
+    .ai-mascot:active { transform: scale(0.9); }
+    .ai-eyes { display: flex; gap: 12px; margin-top: -8px; }
+    .eye { width: 8px; height: 12px; background: #4a4a4a; border-radius: 50%; animation: blink 4s infinite; }
+    .ai-blush {
+        position: absolute; width: 14px; height: 6px; background: rgba(255, 100, 100, 0.4);
+        border-radius: 50%; top: 36px; filter: blur(1px);
+    }
+    .blush-l { left: 10px; }
+    .blush-r { right: 10px; }
+    .ai-mouth {
+        position: absolute; width: 10px; height: 5px; border-bottom: 2px solid #4a4a4a; border-radius: 50%; top: 35px;
+    }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+    @keyframes blink { 0%, 95%, 98% { transform: scaleY(1); } 96%, 99% { transform: scaleY(0.1); } }
+  </style>
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/framer-motion@11.0.8/dist/framer-motion.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { memo, useState, useEffect, useRef, forwardRef } = React;
+    const { motion, useAnimation, useInView, useMotionTemplate, useMotionValue } = window.Motion;
+
+    function cn(...inputs) { return inputs.filter(Boolean).join(' '); }
+
+    const AIAgent = memo(function AIAgent() {
+      const [bubbleText, setBubbleText] = useState("กำลังเตรียมระบบ...");
+      const [showBubble, setShowBubble] = useState(false);
+      const [mascotStyle, setMascotStyle] = useState({});
+      const bubbleTimeout = useRef(null);
+
+      const aiMessages = [
+          "สวัสดีค่ะ! แวะมาทักทายค่ะ ✨",
+          "ระบบทุกอย่างทำงานปกติค่ะ! 💚",
+          "กรุณาล็อกอินเพื่อเข้าสู่ระบบนะคะ 🚀",
+          "อย่าลืมพักสายตา ดื่มน้ำบ้างนะคะ 😊"
+      ];
+
+      useEffect(() => {
+        const timer = setTimeout(() => {
+          setBubbleText("ยินดีต้อนรับสู่ Admin Login ค่ะ! 🎉");
+          setShowBubble(true);
+          bubbleTimeout.current = setTimeout(() => setShowBubble(false), 5000);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }, []);
+
+      const pokeAgent = () => {
+        const randomMsg = aiMessages[Math.floor(Math.random() * aiMessages.length)];
+        setBubbleText(randomMsg);
+        setShowBubble(true);
+        setMascotStyle({ transform: 'scale(0.9) translateY(5px)' });
+        setTimeout(() => setMascotStyle({}), 150);
+        clearTimeout(bubbleTimeout.current);
+        bubbleTimeout.current = setTimeout(() => setShowBubble(false), 4000);
+      };
+
+      return (
+        <div className="ai-agent-container" onClick={pokeAgent}>
+            <div className={`ai-bubble ${showBubble ? 'show' : ''}`}>{bubbleText}</div>
+            <div className="ai-mascot" style={mascotStyle}>
+                <div className="ai-eyes">
+                    <div className="eye"></div>
+                    <div className="eye"></div>
+                </div>
+                <div className="ai-blush blush-l"></div>
+                <div className="ai-blush blush-r"></div>
+                <div className="ai-mouth"></div>
+            </div>
+        </div>
+      );
+    });
+
+    const DitherBackground = memo(() => {
+      const bgRef = useRef(null);
+      useEffect(() => {
+        let animationFrameId;
+        const renderDitherGradient = (timestamp) => {
+          if (!bgRef.current) return;
+          const t = timestamp / 1000;
+          const slide = Math.sin(t * 0.71 * 0.9) * 0.5 * 0.60 * 100;
+          
+          bgRef.current.style.backgroundImage = `
+            url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.500'/></svg>"), 
+            radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.8) 100%), 
+            radial-gradient(circle at ${64.62 + slide}% ${47.38 + slide}%, rgba(14, 36, 23, 1) 0%, rgba(14, 36, 23, 0.844) 10.28%, rgba(14, 36, 23, 0.5) 20.55%, rgba(14, 36, 23, 0.156) 30.83%, rgba(14, 36, 23, 0) 41.1%), 
+            radial-gradient(circle at ${26.12 + slide}% ${73.43 + slide}%, rgba(46, 107, 62, 1) 0%, rgba(46, 107, 62, 0.844) 12.38%, rgba(46, 107, 62, 0.5) 24.75%, rgba(46, 107, 62, 0.156) 37.13%, rgba(46, 107, 62, 0) 49.5%), 
+            radial-gradient(circle at ${50.75 + slide}% ${18.03 + slide}%, rgba(120, 184, 107, 1) 0%, rgba(120, 184, 107, 0.844) 16.14%, rgba(120, 184, 107, 0.5) 32.27%, rgba(120, 184, 107, 0.156) 48.41%, rgba(120, 184, 107, 0) 64.55%), 
+            radial-gradient(circle at ${81.04 + slide}% ${80.65 + slide}%, rgba(221, 240, 200, 1) 0%, rgba(221, 240, 200, 0.844) 15.61%, rgba(221, 240, 200, 0.5) 31.23%, rgba(221, 240, 200, 0.156) 46.84%, rgba(221, 240, 200, 0) 62.45%)
+          `;
+          animationFrameId = requestAnimationFrame(renderDitherGradient);
+        };
+        animationFrameId = requestAnimationFrame(renderDitherGradient);
+        return () => cancelAnimationFrame(animationFrameId);
+      }, []);
+
+      return <div ref={bgRef} className="fixed inset-0 w-full h-full -z-20 bg-[#78B86B]" style={{ backgroundSize: '120px 120px, auto, auto, auto, auto, auto', backgroundBlendMode: 'overlay, normal, normal, normal, normal, normal' }} />;
+    });
+
+    const Eye = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
+    const EyeOff = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>;
+    const CodeIcon = ({size=24, className}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>;
+    const TerminalIcon = ({size=24, className}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>;
+    const DatabaseIcon = ({size=24, className}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>;
+    const CpuIcon = ({size=24, className}) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>;
+
+    const Input = memo(forwardRef(function Input({ className, type, ...props }, ref) {
+      const [visible, setVisible] = useState(false);
+      const mouseX = useMotionValue(0);
+      const mouseY = useMotionValue(0);
+
+      function handleMouseMove({ currentTarget, clientX, clientY }) {
+        const { left, top } = currentTarget.getBoundingClientRect();
+        mouseX.set(clientX - left);
+        mouseY.set(clientY - top);
+      }
+
+      return (
+        <motion.div
+          style={{ background: useMotionTemplate`radial-gradient(${visible ? '100px' : '0px'} circle at ${mouseX}px ${mouseY}px, #22c55e, transparent 80%)` }}
+          onMouseMove={handleMouseMove} onMouseEnter={() => setVisible(true)} onMouseLeave={() => setVisible(false)}
+          className='group/input rounded-lg p-[2px] transition duration-300 bg-white/10'
+        >
+          <input
+            type={type}
+            className={cn(`flex h-10 w-full rounded-md border-none bg-[#0f172a]/80 px-3 py-2 text-sm text-white transition duration-400 placeholder:text-neutral-500 focus-visible:ring-[2px] focus-visible:ring-green-500 focus-visible:outline-none`, className)}
+            ref={ref} {...props}
+          />
+        </motion.div>
+      );
+    }));
+
+    const BoxReveal = memo(function BoxReveal({ children, width = 'fit-content', boxColor, duration, overflow = 'hidden', position = 'relative', className }) {
+      const mainControls = useAnimation();
+      const slideControls = useAnimation();
+      const ref = useRef(null);
+      const isInView = useInView(ref, { once: true });
+
+      useEffect(() => {
+        if (isInView) {
+          slideControls.start('visible');
+          mainControls.start('visible');
+        }
+      }, [isInView, mainControls, slideControls]);
+
+      return (
+        <section ref={ref} style={{ position, width, overflow }} className={className}>
+          <motion.div variants={{ hidden: { opacity: 0, y: 75 }, visible: { opacity: 1, y: 0 } }} initial='hidden' animate={mainControls} transition={{ duration: duration ?? 0.5, delay: 0.25 }}>
+            {children}
+          </motion.div>
+          <motion.div variants={{ hidden: { left: 0 }, visible: { left: '100%' } }} initial='hidden' animate={slideControls} transition={{ duration: duration ?? 0.5, ease: 'easeIn' }}
+            style={{ position: 'absolute', top: 4, bottom: 4, left: 0, right: 0, zIndex: 20, background: boxColor ?? '#22c55e', borderRadius: 4 }}
+          />
+        </section>
+      );
+    });
+
+    const Ripple = memo(function Ripple({ mainCircleSize = 210, mainCircleOpacity = 0.15, numCircles = 11, className = '' }) {
+      return (
+        <section className={`max-w-[50%] absolute inset-0 flex items-center justify-center [mask-image:linear-gradient(to_bottom,white,transparent)] ${className}`}>
+          {Array.from({ length: numCircles }, (_, i) => {
+            const size = mainCircleSize + i * 70;
+            const opacity = mainCircleOpacity - i * 0.015;
+            return <span key={i} className='absolute animate-ripple rounded-full border border-white/20' style={{ width: `${size}px`, height: `${size}px`, opacity, animationDelay: `${i * 0.06}s`, borderStyle: i === numCircles - 1 ? 'dashed' : 'solid', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+          })}
+        </section>
+      );
+    });
+
+    const OrbitingCircles = memo(function OrbitingCircles({ className, children, reverse = false, duration = 20, delay = 10, radius = 50, path = true }) {
+      return (
+        <React.Fragment>
+          {path && (
+            <svg xmlns='http://www.w3.org/2000/svg' version='1.1' className='pointer-events-none absolute inset-0 size-full'>
+              <circle className='stroke-white/20 stroke-1' cx='50%' cy='50%' r={radius} fill='none' />
+            </svg>
+          )}
+          <section style={{ '--duration': duration, '--radius': radius, '--delay': -delay }} className={cn('absolute flex size-full transform-gpu animate-orbit items-center justify-center rounded-full border border-white/10 bg-white/5 backdrop-blur-sm [animation-delay:calc(var(--delay)*1000ms)]', reverse ? '[animation-direction:reverse]' : '', className)}>
+            {children}
+          </section>
+        </React.Fragment>
+      );
+    });
+
+    const TechOrbitDisplay = memo(function TechOrbitDisplay({ iconsArray, imgSrc }) {
+      return (
+        <section className='relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-lg'>
+          <img src={imgSrc} alt="IT MDCU Logo" className="pointer-events-none z-10 w-64 md:w-80 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.2)] mix-blend-screen" />
+          {iconsArray.map((icon, index) => <OrbitingCircles key={index} {...icon}>{icon.component()}</OrbitingCircles>)}
+        </section>
+      );
+    });
+
+    const BottomGradient = () => (
+      <React.Fragment>
+        <span className='group-hover/btn:opacity-100 block transition duration-500 opacity-0 absolute h-px w-full -bottom-px inset-x-0 bg-gradient-to-r from-transparent via-emerald-400 to-transparent' />
+        <span className='group-hover/btn:opacity-100 blur-sm block transition duration-500 opacity-0 absolute h-px w-1/2 mx-auto -bottom-px inset-x-10 bg-gradient-to-r from-transparent via-green-400 to-transparent' />
+      </React.Fragment>
+    );
+
+    const AnimatedForm = memo(function AnimatedForm({ header, subHeader, fields, submitButton, onSubmit }) {
+      const [visible, setVisible] = useState(false);
+      const [errors, setErrors] = useState({});
+
+      const handleSubmit = (event) => {
+        event.preventDefault();
+        let currentErrors = {};
+        fields.forEach((field) => {
+          if (field.required && !event.target[field.label]?.value) {
+            currentErrors[field.label] = `${field.label} is required`;
+          }
+        });
+        if (Object.keys(currentErrors).length === 0) onSubmit(event);
+        else setErrors(currentErrors);
+      };
+
+      return (
+        <section className='max-md:w-full flex flex-col gap-4 w-96 mx-auto z-10 p-8 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl'>
+          <BoxReveal boxColor='var(--skeleton)' duration={0.3}><h2 className='font-bold text-3xl text-white'>{header}</h2></BoxReveal>
+          {subHeader && <BoxReveal boxColor='var(--skeleton)' duration={0.3} className='pb-2'><p className='text-white/60 text-sm max-w-sm'>{subHeader}</p></BoxReveal>}
+
+          <form onSubmit={handleSubmit}>
+            <section className={`grid grid-cols-1 mb-4`}>
+              {fields.map((field) => (
+                <section key={field.label} className='flex flex-col gap-2 mb-4'>
+                  <BoxReveal boxColor='var(--skeleton)' duration={0.3}><label htmlFor={field.label} className="text-sm font-medium leading-none text-white/90">{field.label} <span className='text-red-400'>*</span></label></BoxReveal>
+                  <BoxReveal width='100%' boxColor='var(--skeleton)' duration={0.3} className='flex flex-col space-y-2 w-full'>
+                    <section className='relative'>
+                      <Input type={field.type === 'password' ? (visible ? 'text' : 'password') : field.type} id={field.label} placeholder={field.placeholder} onChange={field.onChange} />
+                      {field.type === 'password' && (
+                        <button type='button' onClick={() => setVisible(!visible)} className='absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-neutral-400 hover:text-white'>
+                          {visible ? <Eye /> : <EyeOff />}
+                        </button>
+                      )}
+                    </section>
+                    <section className='h-4'>{errors[field.label] && <p className='text-red-400 text-xs'>{errors[field.label]}</p>}</section>
+                  </BoxReveal>
+                </section>
+              ))}
+            </section>
+            <BoxReveal width='100%' boxColor='var(--skeleton)' duration={0.3} overflow='visible'>
+              <button className='bg-green-600 relative group/btn block w-full text-white rounded-md h-10 font-medium outline-hidden hover:bg-green-500 transition-colors shadow-[0_0_15px_rgba(34,197,94,0.3)]' type='submit'>
+                {submitButton} &rarr;<BottomGradient />
+              </button>
+            </BoxReveal>
+          </form>
+        </section>
+      );
+    });
+
+    const iconsArray = [
+      { component: () => <CodeIcon size={24} className="text-emerald-400" />, className: 'size-[30px] border-none bg-transparent', duration: 20, delay: 20, radius: 100 },
+      { component: () => <TerminalIcon size={36} className="text-green-400" />, className: 'size-[50px] border-none bg-transparent', radius: 210, duration: 20 },
+      { component: () => <DatabaseIcon size={36} className="text-teal-400" />, className: 'size-[50px] border-none bg-transparent', radius: 270, duration: 20, reverse: true },
+      { component: () => <CpuIcon size={36} className="text-lime-400" />, className: 'size-[50px] border-none bg-transparent', radius: 270, duration: 20, delay: 60, reverse: true },
+    ];
+
+    function DemoPage() {
+      const [formData, setFormData] = useState({ username: '', password: '' });
+      const handleInputChange = (event, name) => setFormData((prev) => ({ ...prev, [name]: event.target.value }));
+
+      const formFields = {
+        header: 'System Administration', subHeader: 'Secure access for authorized personnel only',
+        fields: [
+          { label: 'Username', required: true, type: 'text', placeholder: 'Enter admin username', onChange: (e) => handleInputChange(e, 'username') },
+          { label: 'Password', required: true, type: 'password', placeholder: 'Enter your password', onChange: (e) => handleInputChange(e, 'password') },
+        ],
+        submitButton: 'Login to Dashboard',
+      };
+
+      const handleAdminLogin = (e) => {
+        e.preventDefault();
+        if(formData.username === 'admin' && formData.password === 'itmdcu2026') window.location.href = 'app.html'; 
+        else alert('Invalid Username or Password. Please try again.');
+      };
+
+      return (
+        <React.Fragment>
+          <main className='flex min-h-screen max-lg:justify-center overflow-hidden relative z-0 text-white'>
+            <DitherBackground />
+            <div className='relative flex flex-col justify-center w-1/2 max-lg:hidden overflow-hidden'>
+              <Ripple mainCircleSize={100} />
+              <TechOrbitDisplay iconsArray={iconsArray} imgSrc="ITMDCU_Logo_Vertical.png" />
+            </div>
+            <div className='w-1/2 h-[100dvh] flex flex-col justify-center items-center max-lg:w-full max-lg:px-[10%] relative z-10'>
+              <AnimatedForm {...formFields} onSubmit={handleAdminLogin} />
+            </div>
+          </main>
+          <AIAgent />
+        </React.Fragment>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<DemoPage />);
+  </script>
+</body>
 </html>
