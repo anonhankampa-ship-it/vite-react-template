@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "vite-react-my-it-works",
+// wrangler.jsonc
+"name": "vite-react-my-it-works",
   "main": "./worker.js",
   "compatibility_date": "2026-09-24",
   "workers_dev": true,
