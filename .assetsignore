@@ -1,0 +1,19 @@
+/.assetsignore
+/.dev.vars
+/.dev.vars.*
+/.env
+/.env.*
+/.gitignore
+/.git/**
+/.wrangler/**
+/node_modules/**
+/_headers
+/README.md
+/MY IT WORKs.txt
+/package.json
+/package-lock.json
+/wrangler.jsonc
+/worker.js
+/functions/**
+/google-apps-script/**
+/deploy-my-it-works.ps1
