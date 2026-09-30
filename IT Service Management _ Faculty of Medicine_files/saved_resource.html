@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<!-- saved from url=(0022)http://127.0.0.1:5000/ -->
+<html lang="th"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Center Digital Signage</title>
+    <link href="./css2" rel="stylesheet">
+    <style>
+        :root { 
+            --it-green: #10b981; 
+            --chula-green: #1b7442; 
+        }
+        body, html { 
+            margin: 0; padding: 0; width: 100vw; height: 100vh; 
+            overflow: hidden; font-family: 'Prompt', sans-serif; 
+            background-color: #000; 
+            cursor: none; 
+        }
+        
+        .bg-image, .idle-video { 
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; object-fit: cover; 
+        }
+        .bg-image { z-index: 1; }
+        
+        .idle-video { 
+            z-index: 2; opacity: 0; transition: opacity 1s ease-in-out;
+            pointer-events: none;
+        }
+        .idle-video.active { opacity: 1; }
+
+        .ui-layer { 
+            position: absolute; width: 100%; height: 100%; 
+            z-index: 3; pointer-events: none; 
+        }
+
+        .top-bar {
+            position: absolute; 
+            top: clamp(10px, 3vh, 30px); 
+            right: clamp(10px, 3vw, 40px); 
+            background: rgba(0,0,0,0.8); 
+            padding: clamp(8px, 1.5vh, 15px) clamp(15px, 2vw, 30px); 
+            border-radius: 12px; color: #fff; font-family: 'Space Mono'; 
+            font-size: clamp(1rem, 2vw, 2rem); 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .widget-container {
+            position: absolute; 
+            top: 55%; 
+            left: 50%; transform: translate(-50%, -50%); 
+            width: 85vw; 
+            max-width: 95vw; 
+            opacity: 0; transition: opacity 0.8s ease-in-out; 
+            display: flex; justify-content: flex-start;
+        }
+        .widget-container.show { opacity: 1; }
+
+        .info-card {
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);
+            border-left: clamp(10px, 1.5vw, 24px) solid var(--chula-green); 
+            border-radius: clamp(15px, 2.5vw, 30px);
+            padding: clamp(30px, 5vh, 80px) clamp(40px, 6vw, 100px); 
+            display: flex; flex-direction: column; 
+            gap: clamp(10px, 2vh, 30px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            width: 100%;
+        }
+
+        .title { 
+            font-size: clamp(2rem, 5.5vw, 8rem); 
+            font-weight: 900; color: var(--chula-green); margin: 0; 
+            margin-top: clamp(10px, 2vh, 25px); 
+            line-height: 1.15; letter-spacing: -1px; word-wrap: break-word;
+        }
+
+        .room-box { 
+            background: #111827; color: #fff; 
+            padding: clamp(10px, 1.5vh, 20px) clamp(20px, 3vw, 40px); 
+            border-radius: clamp(8px, 1.5vw, 16px); 
+            font-size: clamp(1.2rem, 2.5vw, 3.5rem); 
+            font-weight: 700; width: fit-content;
+        }
+
+        .time-box {
+            color: var(--it-green); 
+            font-size: clamp(1rem, 2vw, 2.8rem); 
+            font-weight: 600; display: flex; align-items: center; gap: 10px;
+        }
+
+        .dept-tag {
+            background: var(--it-green); color: #fff;
+            padding: clamp(8px, 1.5vh, 20px) clamp(15px, 2.5vw, 40px); 
+            border-radius: 8px;
+            font-size: clamp(1.2rem, 2vw, 2.5rem); 
+            font-weight: 600; width: fit-content;
+        }
+        
+        @media (orientation: portrait) {
+            .widget-container { top: 70%; width: 92vw; }
+            .info-card { padding: 30px 25px; }
+            .title { font-size: clamp(2rem, 7vw, 4.5rem); margin-top: 15px; }
+            .top-bar { top: 15px; right: 15px; font-size: 1.2rem; }
+            .dept-tag { font-size: clamp(1rem, 2.5vw, 1.5rem); }
+        }
+    </style>
+</head>
+<body>
+
+    <img src="./bg.png" class="bg-image" onerror="this.style.display=&#39;none&#39;">
+    
+    <video id="idleVideo" class="idle-video active" autoplay="" loop="" muted="" playsinline="">
+        <source src="/static/test.mp4" type="video/mp4">
+    </video>
+
+    <div class="ui-layer">
+        <div class="top-bar">
+            <span style="color:var(--it-green)">LIVE</span> <span id="clock">11:27:34</span>
+        </div>
+
+        <div class="widget-container" id="widgetContainer">
+            <div class="info-card">
+                <div id="deptText" class="dept-tag" style="display: none;"></div>
+                <h1 class="title" id="titleText"></h1>
+                
+                <div class="time-box" id="timeText"></div>
+                <div class="room-box" id="roomText"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateClock() {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('th-TH', {hour12:false});
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        let eventsList = [];
+        let currentIndex = 0;
+
+        async function fetchEvents() {
+            try {
+                const res = await fetch('/api/events');
+                const data = await res.json();
+                eventsList = Array.isArray(data) ? data : (data.events || []);
+                if(eventsList.length === 0) currentIndex = 0;
+            } catch (e) { console.error("Fetch Error:", e); }
+        }
+
+        function refreshUI() {
+            const video = document.getElementById('idleVideo');
+            const widget = document.getElementById('widgetContainer');
+            
+            if (eventsList.length === 0) {
+                widget.classList.remove('show'); 
+                video.classList.add('active');
+                video.play().catch(e => console.log("รอโต้ตอบ"));
+            } else {
+                video.classList.remove('active');
+                video.pause();
+                
+                const ev = eventsList[currentIndex];
+                
+                // 📍 ดึงข้อมูลกิจกรรมมา แล้วสั่งลบคำว่า "เพื่อ" หรือ "เพื่อ " ที่อยู่หน้าสุดทิ้งอัตโนมัติ
+                let activityName = ev.description || "ไม่ระบุชื่อกิจกรรม";
+                activityName = activityName.replace(/^เพื่อ\s*/, ''); 
+                
+                document.getElementById('titleText').innerText = activityName;
+                document.getElementById('roomText').innerText = ev.room_name || "ไม่ระบุห้อง";
+                document.getElementById('timeText').innerText = ev.time || "";
+
+                const deptEl = document.getElementById('deptText');
+                if (ev.summary) {
+                    deptEl.innerText = ev.summary;
+                    deptEl.style.display = 'block';
+                } else {
+                    deptEl.style.display = 'none';
+                }
+                
+                widget.classList.add('show');
+                currentIndex = (currentIndex + 1) % eventsList.length;
+            }
+        }
+
+        fetchEvents().then(() => {
+            refreshUI();
+            setInterval(refreshUI, 15000); 
+            setInterval(fetchEvents, 60000);
+        });
+
+        window.addEventListener('click', () => {
+            const v = document.getElementById('idleVideo');
+            if(v.classList.contains('active')) v.play();
+        }, {once: true});
+        
+        setTimeout(() => window.location.reload(true), 12 * 60 * 60 * 1000); 
+    </script>
+
+</body></html>
