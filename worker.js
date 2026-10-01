@@ -55,14 +55,14 @@ export default {
       // ถ้าค้นหาไฟล์ที่ระบุตรง ๆ ไม่เจอ (เช่น เข้าผ่าน Client-side Routing ของ React)
       if (response.status === 404) {
         // หากผู้ใช้กำลังเข้าใช้หน้าอื่น ๆ ของระบบ ให้ดึง index.html มารองรับ (SPA Fallback)
-        const fallbackRequest = new Request(new URL('/index.html', request.url), request);
+        const fallbackRequest = new Request(new URL('/app.html', request.url), request);
         return addSecurityHeaders(await env.ASSETS.fetch(fallbackRequest));
       }
 
       return addSecurityHeaders(response);
     } catch (e) {
       // หากเกิดข้อผิดพลาดในการดึง Asset ให้ส่ง index.html กลับไปเป็นค่าเริ่มต้น
-      const defaultRequest = new Request(new URL('/index.html', request.url), request);
+      const defaultRequest = new Request(new URL('/app.html', request.url), request);
       return addSecurityHeaders(await env.ASSETS.fetch(defaultRequest));
     }
   },
