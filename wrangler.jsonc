@@ -1,5 +1,5 @@
 {
-  "name": "vite-react-template-build-token",
+  "name": "vite-react-template",
   "main": "worker.js",
   "compatibility_date": "2026-09-24",
   "assets": {
