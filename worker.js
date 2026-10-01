@@ -48,22 +48,31 @@ export default {
       return addSecurityHeaders(jsonError('ไม่รองรับ API นี้', 404));
     }
 
-    // 2. จัดการส่วนของ Static Assets (index.html, app.html, JS, CSS)
+    // 2. จัดการส่วนของ Static Assets (index.html, app.html)
     try {
+      // ดึงข้อมูล Asset ตรงตาม Request จริงที่บราวเซอร์เรียกหา
       const response = await env.ASSETS.fetch(request);
 
-      // ถ้าค้นหาไฟล์ที่ระบุตรง ๆ ไม่เจอ (เช่น เข้าผ่าน Client-side Routing ของ React)
+      // แก้ไขปัญหาการเด้งกลับ: ถ้าบราวเซอร์วิ่งไปที่ /app.html ตรง ๆ แต่หาระบบไฟล์ไม่เจอชั่วคราว
+      // หรือกรณีทำ Client-side Routing ในหน้า App ให้มันทำการดึง app.html ตัวเองมารองรับ ไม่ใช่โยนกลับไป index
       if (response.status === 404) {
-        // หากผู้ใช้กำลังเข้าใช้หน้าอื่น ๆ ของระบบ ให้ดึง index.html มารองรับ (SPA Fallback)
-        const fallbackRequest = new Request(new URL('/index.html', request.url), request);
-        return addSecurityHeaders(await env.ASSETS.fetch(fallbackRequest));
+        if (pathname === '/app.html' || pathname.startsWith('/app')) {
+          const appRequest = new Request(new URL('/app.html', request.url), request);
+          return addSecurityHeaders(await env.ASSETS.fetch(appRequest));
+        }
+        
+        // สำหรับเส้นทางทั่วไปอื่นๆ ค่อยโยนกลับไปหน้าล็อกอิน (index.html)
+        const indexRequest = new Request(new URL('/index.html', request.url), request);
+        return addSecurityHeaders(await env.ASSETS.fetch(indexRequest));
       }
 
       return addSecurityHeaders(response);
     } catch (e) {
-      // หากเกิดข้อผิดพลาดในการดึง Asset ให้ส่ง index.html กลับไปเป็นค่าเริ่มต้น
-      const defaultRequest = new Request(new URL('/app.html', request.url), request);
-      return addSecurityHeaders(await env.ASSETS.fetch(defaultRequest));
+      // หากเกิด Error กลางทางและระบบตรวจพบว่าเป็นหน้าแอป ให้พยายามเรียกหน้าเดิมซ้ำก่อน
+      if (pathname === '/app.html' || pathname.startsWith('/app')) {
+        return addSecurityHeaders(await env.ASSETS.fetch(new Request(new URL('/app.html', request.url), request)));
+      }
+      return addSecurityHeaders(await env.ASSETS.fetch(new Request(new URL('/index.html', request.url), request)));
     }
   },
 };
