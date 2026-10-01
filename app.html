@@ -667,16 +667,11 @@
 
     <script>
         // ==================== GEMINI AI CONFIG ====================
-const GEMINI_MODELS = [
-  'gemini-3.8-flash',
-  'gemini-3.7-flash',
-  'gemini-3.6-flash',
-  'gemini-3.5-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-3.1-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-3-flash-preview'
-];
+        const GEMINI_MODELS = [
+            'gemini-3.8-flash',
+            'gemini-3.5-flash-lite',
+            'gemini-3.5-flash'
+        ];
 
         const SYSTEM_PROMPT = `คุณคือ "IT Assistant" ผู้ช่วย AI ประจำทีม MY IT WORKs ของไอที คณะแพทยศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย
 
@@ -754,6 +749,7 @@ const GEMINI_MODELS = [
             for (const model of GEMINI_MODELS) {
                 try {
                     const requestBody = {
+                        model,
                         system_instruction: { parts: [{ text: menuAwareSystemPrompt }] },
                         contents: trimmedHistory,
                         generationConfig: {
