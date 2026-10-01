@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 
-$secureToken = Read-Host 'วาง Cloudflare token สำหรับ my-it-works (ตัวอักษรจะถูกซ่อน)' -AsSecureString
+$secureToken = Read-Host 'cfut_gwPpukCTFCUAsL9MyydOKSrcA2oHqglVL7baXAqZd280666c' -AsSecureString
 if ($secureToken.Length -eq 0) {
     throw 'ไม่ได้ใส่ Cloudflare API token'
 }
