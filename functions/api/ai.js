@@ -1,3 +1,4 @@
+// กำหนดรายชื่อโมเดลที่อนุญาตให้ใช้งาน (เพิ่มเวอร์ชันปัจจุบันเพื่อความเข้ากันได้)
 const ALLOWED_MODELS = new Set([
   'gemini-3.8-flash',
   'gemini-3.7-flash',
@@ -8,9 +9,14 @@ const ALLOWED_MODELS = new Set([
   'gemini-2.5-flash',
   'gemini-3-flash-preview'
 ]);
-const MAX_REQUEST_BYTES = 32 * 1024;
+
+
+
+// กำหนดขีดจำกัดขนาดข้อมูลเพื่อป้องกัน Server Overload
+const MAX_REQUEST_BYTES = 32 * 1024; // 32 KB
 const MAX_INPUT_CHARS = 18_000;
 
+// ฟังก์ชันช่วยเหลือสำหรับสร้าง Response เป็น JSON พร้อม Headers ป้องกันแคช
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -22,6 +28,7 @@ function json(body, status = 200) {
   });
 }
 
+// ฟังก์ชันคำนวณความยาวตัวอักษรทั้งหมดในประวัติแชท
 function textLength(value) {
   if (!value || !Array.isArray(value)) return 0;
   return value.reduce((total, item) => {
@@ -31,18 +38,25 @@ function textLength(value) {
   }, 0);
 }
 
+// ฟังก์ชันหลักสำหรับจัดการ HTTP POST Request
 export async function onRequestPost({ request, env }) {
+  // 1. ตรวจสอบที่มาของคำขอ (CORS Security)
   const origin = request.headers.get('Origin');
   if (origin && origin !== new URL(request.url).origin) {
     return json({ error: 'คำขอมาจากเว็บไซต์ที่ไม่ได้รับอนุญาต' }, 403);
   }
+
+  // 2. ตรวจสอบประเภทเนื้อหาว่าต้องเป็น JSON
   if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) {
     return json({ error: 'ต้องส่งข้อมูลแบบ JSON' }, 415);
   }
+
+  // 3. ตรวจสอบว่ามีการตั้งค่า API Key บน Cloudflare แล้วหรือไม่
   if (!env.GEMINI_API_KEY) {
     return json({ error: 'ยังไม่ได้ตั้งค่า AI service บน Cloudflare' }, 503);
   }
 
+  // 4. ตรวจสอบขนาดของคำขอก่อนแปลงผล
   const declaredLength = Number(request.headers.get('Content-Length') || 0);
   if (declaredLength > MAX_REQUEST_BYTES) return json({ error: 'คำขอมีขนาดใหญ่เกินไป' }, 413);
 
@@ -57,9 +71,12 @@ export async function onRequestPost({ request, env }) {
     return json({ error: 'ข้อมูล JSON ไม่ถูกต้อง' }, 400);
   }
 
+  // 5. ตรวจสอบโมเดลที่เลือกใช้งาน
   if (!input || !ALLOWED_MODELS.has(input.model)) {
     return json({ error: 'ไม่รองรับโมเดลที่เลือก' }, 400);
   }
+
+  // 6. ตรวจสอบโครงสร้างประวัติการสนทนา (Contents)
   if (!Array.isArray(input.contents) || input.contents.length < 1 || input.contents.length > 20) {
     return json({ error: 'รูปแบบประวัติสนทนาไม่ถูกต้อง' }, 400);
   }
@@ -67,10 +84,12 @@ export async function onRequestPost({ request, env }) {
     item && ['user', 'model'].includes(item.role) && Array.isArray(item.parts) &&
     item.parts.length > 0 && item.parts.every((part) =>
       part && typeof part.text === 'string' && part.text.length <= MAX_INPUT_CHARS));
+      
   if (!validContents || textLength(input.contents) > MAX_INPUT_CHARS) {
     return json({ error: 'ข้อความยาวเกินกำหนดหรือมีรูปแบบไม่ถูกต้อง' }, 400);
   }
 
+  // 7. ตรวจสอบและตั้งค่า System Instruction (คำสั่งระบบ)
   let systemInstruction;
   if (input.system_instruction !== undefined) {
     const parts = input.system_instruction?.parts;
@@ -80,6 +99,7 @@ export async function onRequestPost({ request, env }) {
     systemInstruction = { parts: [{ text: parts[0].text }] };
   }
 
+  // 8. จัดเตรียม Configuration สำหรับการสุ่มคำตอบ (Temperature & Tokens)
   const generationConfig = input.generationConfig || {};
   const requestBody = {
     contents: input.contents,
@@ -92,8 +112,10 @@ export async function onRequestPost({ request, env }) {
   };
   if (systemInstruction) requestBody.system_instruction = systemInstruction;
 
+  // 9. ส่งคำขอไปยัง Google Gemini API พร้อมตั้งเวลารอสูงสุด 30 วินาที
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
+  
   try {
     const upstream = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${input.model}:generateContent`,
@@ -101,24 +123,31 @@ export async function onRequestPost({ request, env }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-goog-api-key': env.GEMINI_API_KEY,
+          'x-goog-api-key': env.GEMINI_API_KEY, // ดึง API Key จาก Environment 
         },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
       },
     );
+    
+    // 10. จัดการข้อผิดพลาดที่ตอบกลับจาก Google
     if (!upstream.ok) {
       const status = upstream.status === 429 ? 429 : 502;
       return json({ error: status === 429
         ? 'บริการ AI ใช้งานหนาแน่น กรุณารอสักครู่แล้วลองใหม่'
         : 'บริการ AI ขัดข้อง กรุณาลองใหม่ภายหลัง' }, status);
     }
+    
     const data = await upstream.json();
     const candidate = data.candidates?.[0];
+    
     if (!candidate?.content?.parts?.some((part) => typeof part.text === 'string')) {
       return json({ error: 'AI ไม่ได้ส่งข้อความกลับมา กรุณาลองปรับคำถาม' }, 502);
     }
+    
+    // 11. ส่งคำตอบกลับไปหาผู้ใช้
     return json({ candidates: [candidate], modelVersion: data.modelVersion || input.model });
+    
   } catch {
     return json({ error: 'เชื่อมต่อบริการ AI ไม่สำเร็จ กรุณาลองใหม่ภายหลัง' }, 502);
   } finally {
@@ -126,6 +155,7 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
+// ฟังก์ชันเริ่มต้น (Entry Point) สำหรับ Cloudflare
 export function onRequest(context) {
   if (context.request.method !== 'POST') {
     return json({ error: 'รองรับเฉพาะ POST' }, 405);
